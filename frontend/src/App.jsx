@@ -4,15 +4,18 @@ import './App.css'
 import Header from './components/Header'
 import TodoEditor from './components/TodoEditor'
 import TodoList from './components/TodoList'
+import { api,ensureGuestAuth } from './lib/api'
 function App() {
 
   const [todos, setTodos] = useState([])
-  const API = `${import.meta.env.VITE_API_URL}/api/todos`
+  const API = 'api/todos'
 
   useEffect(() => {
     const fetchTodos = async () => {
       try {
-        const res = await axios.get(API)
+
+        await ensureGuestAuth()
+        const res = await api.get(API)
         const data = Array.isArray(res.data) ?
           res.data : res.data.todos ?? []
 
@@ -26,122 +29,125 @@ function App() {
     fetchTodos()
   }, [])
 
+
   const onCreate = async (todoText) => {
     if (!todoText.trim()) return
+
     try {
 
-      const res = await axios.post(API, { text: todoText.trim() })
+      const res = await api.post(API, { text: todoText.trim() })
 
-      const created = res.data?.todo?? res.data
+      const created = res.data?.todo ?? res.data
 
-      if(Array.isArray(res.data?.todos)){
+      if (Array.isArray(res.data?.todos)) {
         setTodos(res.data.todos)
-      }else{
-        setTodos(prev=>[created,...prev])
+      } else {
+        setTodos(prev => [created, ...prev])
       }
 
     } catch (error) {
-      console.log("추가 실패",error)
+      console.log("추가 실패", error)
     }
   }
-
-  const onDelete = async(id)=>{
+  const onDelete = async (id) => {
     try {
-      if(!confirm("정말 삭제할까요?")) return
+      if (!confirm("정말 삭제할까요?")) return
 
-      const {data}=await axios.delete(`${API}/${id}`)
+      const { data } = await api.delete(`${API}/${id}`)
 
-      if(Array.isArray(data?.todos)){
+      if (Array.isArray(data?.todos)) {
         setTodos(data.todos)
         return
       }
 
-      const deletedId = data?.deletedId?? data?.todo?._id ?? data?._id??id
-      setTodos((prev)=> prev.filter((t)=>t._id!==deletedId))
+      const deletedId = data?.deletedId ?? data?.todo?._id ?? data?._id ?? id
+      setTodos((prev) => prev.filter((t) => t._id !== deletedId))
     } catch (error) {
-      console.error("삭제 실패",error)
+      console.error("삭제 실패", error)
     }
   }
-
-  const onUpdateChecked = async(id,next)=>{
+  const onUpdateChecked = async (id, next) => {
 
     try {
-      const {data}=await axios.patch(`${API}/${id}/check`,{
-        isCompleted:next
+
+      const { data } = await api.patch(`${API}/${id}/check`, {
+        isCompleted: next
       })
 
-      if(Array.isArray(data?.todos)){
+      if (Array.isArray(data?.todos)) {
         setTodos(data.todos)
-      }else{
-        const updated=data?.todo?? data;
+      } else {
+        const updated = data?.todo ?? data;
         setTodos(
-          prev=>prev.map(t=>(t._id===updated._id? updated:t))
+          prev => prev.map(t => (t._id === updated._id ? updated : t))
         )
       }
     } catch (error) {
-      console.error("체크 상태 업데이트 실패",error)
+      console.error("체크 상태 업데이트 실패", error)
     }
 
   }
-  const onUpdateText = async(id,next)=>{
+  const onUpdateText = async (id, next) => {
     const value = next?.trim()
-    
-    if(!value) return
+
+    if (!value) return
 
 
     try {
 
-      const {data}=await axios.patch(`${API}/${id}/text`,{
-        text:value
+      const { data } = await axios.patch(`${API}/${id}/text`, {
+        text: value
       })
 
-      if(Array.isArray(data?.todos)){
+      if (Array.isArray(data?.todos)) {
         setTodos(data.todos)
-      }else{
-        const updated=data?.todo?? data;
+      } else {
+        const updated = data?.todo ?? data;
         setTodos(
-          prev=>prev.map(t=>(t._id===updated._id? updated:t))
+          prev => prev.map(t => (t._id === updated._id ? updated : t))
         )
       }
     } catch (error) {
-      console.error("체크 상태 업데이트 실패",error)
+      console.error("체크 상태 업데이트 실패", error)
     }
 
   }
-  const onUpdate=async(id,next)=>{
+  const onUpdate = async (id, next) => {
     try {
-      const current = Array.isArray(todos) ? todos.find(t=>t._id==id):null
-      if(!current) throw new Error("해당 ID의 todo가 없습니다.")
+      const current = Array.isArray(todos) ? todos.find(t => t._id == id) : null
+      if (!current) throw new Error("해당 ID의 todo가 없습니다.")
 
-        const {data}=await axios.put(`${API}/${id}`,next)
+      const { data } = await api.put(`${API}/${id}`, next)
 
-        const updated = data?.updated ?? data?.todo ?? data;
-        setTodos(
-          prev=>prev.map(t=>(t._id===updated._id? updated:t))
-        )
+      const updated = data?.updated ?? data?.todo ?? data;
+      setTodos(
+        prev => prev.map(t => (t._id === updated._id ? updated : t))
+      )
+
     } catch (error) {
-      console.error("Todo update 실패",error)
+      console.error("Todo update 실패", error)
     }
   }
-  
-  const onUpdateTodo=async(id,next)=>{
+
+  const onUpdateTodo = async (id, next) => {
     try {
-      await onUpdate(id,next)
+      await onUpdate(id, next)
 
     } catch (error) {
-      console.error("Todo update 실패",error)
+      console.error("Todo update 실패", error)
+
     }
   }
 
   return (
     <div className='App'>
       <Header />
-      <TodoEditor onCreate={onCreate}/>
-      <TodoList 
-      todos={Array.isArray(todos)? todos:[]} 
-      onUpdateChecked={onUpdateChecked}
-      onUpdateTodo={onUpdateTodo}
-      onDelete={onDelete}/>
+      <TodoEditor onCreate={onCreate} />
+      <TodoList
+        todos={Array.isArray(todos) ? todos : []}
+        onUpdateChecked={onUpdateChecked}
+        onUpdateTodo={onUpdateTodo}
+        onDelete={onDelete} />
     </div>
   )
 }
